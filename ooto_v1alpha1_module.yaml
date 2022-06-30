@@ -14,8 +14,11 @@ spec:
       capabilities:
         add: [SYS_MODULE]
   kernelMappings:
-    - regexp: '^.*\.x86_64$'
-      containerImage: image-registry.openshift-image-registry.svc:5000/intel-dgpu-kmod/intel-dgpu-driver-container:demo
+    - literal: 4.18.0-305.45.1.el8_4.x86_64
+      #containerImage: image-registry.openshift-image-registry.svc:5000/intel-dgpu-kmod/intel-dgpu-driver-container:4.18.0-305.45.1.el8_4.x86_64
+      containerImage: quay.io/ocpeng/intel-dgpu-driver-container:4.18.0-305.45.1.el8_4.x86_64
+      #- regexp: '^.*\.x86_64$'
+      #containerImage: image-registry.openshift-image-registry.svc:5000/intel-dgpu-kmod/intel-dgpu-driver-container:demo
       build:
         buildArgs:
           - name: SOME_KEY
@@ -26,8 +29,8 @@ spec:
           insecure: false
         dockerfile: |
           FROM
-          quay.io/openshift-release-dev/ocp-v4.0-art-dev
-          as builder
+          quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:57d069fbf5c4ea61bd260e6ea8f94e5f6e7e732a0129ba63bf1642ac910da73a as builder
+          # use KERNEL_VERSION above, hardcode for now
 
 
           WORKDIR /build/
@@ -114,6 +117,8 @@ spec:
 
           COPY --from=builder /build/intel-gpu-firmware/firmware/*.bin
           /opt/lib/firmware/updates/i915/
+
+          RUN depmod -b /opt
   selector:
           intel.feature.node.kubernetes.io/gpu: 'true'
           #feature.node.kubernetes.io/pci-0300_8086.present: "true"
