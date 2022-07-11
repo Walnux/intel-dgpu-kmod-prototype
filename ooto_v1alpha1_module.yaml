@@ -64,7 +64,7 @@ spec:
           RUN git clone -b rhel85 https://github.com/Walnux/intel-gpu-pmt-backports.git && cd intel-gpu-pmt-backports && make && make modules_install
           # both dmabuf and i915 build compat/i915-compat.ko since the compat dir is not removed when building i915. it is a problem?
           # build dmabuf driver
-          RUN git clone -b redhat/main https://github.com/Walnux/intel-gpu-i915-backports.git && cd intel-gpu-i915-backports && patch -p1 < scripts/disable_drm.patch && export LEX=flex; export YACC=bison && cp defconfigs/drm .config && make oldconfig && make -j $(nproc) && make modules_install
+          RUN git clone -b redhat/main https://github.com/Walnux/intel-gpu-i915-backports.git && cd intel-gpu-i915-backports && patch -p1 < scripts/disable_drm.patch && export LEX=flex; export YACC=bison && cp defconfigs/dmabuf .config && make oldconfig && make -j $(nproc) && make modules_install
           # clean up dambuf building
           RUN cd intel-gpu-i915-backports && git reset --hard
           # build i915 driver
