@@ -1,0 +1,12 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker 
+  name: 100-worker-gpu 
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+  kernelArguments:
+      - initcall_blacklist=sync_debugfs_init,dma_buf_init
