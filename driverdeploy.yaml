@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: intel-dgpu-latest
+  name: intel-dgpu-latest
+  namespace: intel-dgpu
+  annotations:
+    specialresource.openshift.io/wait: "true"
+    specialresource.openshift.io/state: "driver-container"
+    specialresource.openshift.io/driver-container-vendor: intel
+    specialresource.openshift.io/kernel-affine: "true"
+spec:
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: intel-dgpu-latest
+  template:
+    metadata:
+      # Mark this pod as a critical add-on; when enabled, the critical add-on scheduler
+      # reserves resources for critical add-on pods so that they can be rescheduled after
+      # a failure.  This annotation works in tandem with the toleration below.
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+      labels:
+        app: intel-dgpu-latest
+    spec:
+      serviceAccount: intel-dgpu-sa
+      serviceAccountName: intel-dgpu-sa
+      containers:
+      - image: image-registry.openshift-image-registry.svc:5000/intel-dgpu/intel-dgpu-driver-container-latest:4.18.0-372.19.1.el8_6.x86_64
+        name: intel-dgpu-driver-container-latest
+        imagePullPolicy: Always
+        command: [sleep, infinity]
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh"]
+          preStop:
+            exec:
+              command: ["/bin/sh"]
+        securityContext:
+          #seLinuxOptions:
+          #  type: spc_t
+          privileged: true
+      nodeSelector:
+        kubernetes.io/hostname: "worker1-gobi"
+        #intel.feature.node.kubernetes.io/gpu: "true"
