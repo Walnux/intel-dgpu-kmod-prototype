@@ -1,0 +1,72 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    app: intel-dgpu-driver-container-latest
+  name: intel-dgpu-driver-container-latest
+  namespace: intel-dgpu
+spec: {}
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: intel-dgpu-driver-build-latest
+  name: intel-dgpu-driver-build-latest
+  namespace: intel-dgpu
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: "worker1-gobi"
+  runPolicy: "Serial"
+  triggers:
+    - type: "ConfigChange"
+    - type: "ImageChange"
+  source:
+    dockerfile: |
+          # DTK base image dynamically retrieved from in cluster registry
+          FROM image-registry.openshift-image-registry.svc:5000/openshift/driver-toolkit:latest
+
+          WORKDIR /build/
+          RUN dnf install -y patch gcc m4 make tar kmod && dnf clean all
+
+          # install bison
+          ARG BISON_VERSION
+          ADD http://ftp.gnu.org/gnu/bison/bison-3.8.tar.gz /bison/
+          RUN tar -xzvf /bison/bison-3.8.tar.gz -C /bison/ && cd /bison/bison-3.8 && ./configure && make && make install
+
+          # install flex
+          ARG FLEX_VERSION
+          ADD https://github.com/westes/flex/files/981163/flex-2.6.4.tar.gz /flex/
+          RUN tar -xzvf /flex/flex-2.6.4.tar.gz -C /flex/ && cd /flex/flex-2.6.4 && ./configure && make && make install
+
+          # build cse driver, latest version, public release
+          RUN git clone -b rhel85 https://github.com/intel-gpu/intel-gpu-cse-backports.git && cd intel-gpu-cse-backports && make && make modules_install
+
+          # build pmt driver, latest version, public release
+          RUN git clone -b rhel85 https://github.com/intel-gpu/intel-gpu-pmt-backports.git && cd intel-gpu-pmt-backports && make && make modules_install
+
+          # build i915 driver,latest RHEL8.6 release
+          RUN git clone -b redhat/main https://user:token@github.com/intel/drivers...releases.git && cd drivers.gpu.kernel.backporting.releases && export LEX=flex; export YACC=bison && cp defconfigs/drm .config && make olddefconfig && make -j $(nproc) && make modules_install
+
+          # build firmware, latest version, public release
+          RUN git clone https://github.com/intel-gpu/intel-gpu-firmware.git
+
+          # create output /opt/lib directories
+          RUN mkdir -p /opt/lib/modules/4.18.0-372.19.1.el8_6.x86_64/updates/
+          RUN mkdir -p /opt/lib/firmware/updates/i915/
+
+          # copy ko files to output directories
+          RUN cp -r /lib/modules/4.18.0-372.19.1.el8_6.x86_64/updates/* /opt/lib/modules/4.18.0-372.19.1.el8_6.x86_64/updates/
+          RUN cp -r /build/intel-gpu-firmware/firmware/*.bin /opt/lib/firmware/updates/i915/
+
+          RUN cp -r /build/intel-gpu-pmt-backports/bin/* /opt/lib/modules/4.18.0-372.19.1.el8_6.x86_64/updates/
+          RUN cp -r /build/intel-gpu-cse-backports/bin/* /opt/lib/modules/4.18.0-372.19.1.el8_6.x86_64/updates/
+
+          RUN depmod -b /opt
+  strategy:
+    dockerStrategy:
+      buildArgs:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: intel-dgpu-driver-container-latest:4.18.0-372.19.1.el8_6.x86_64
